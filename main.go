@@ -95,12 +95,12 @@ func readSetting(settingPath string) (Setting, error) {
 		return Setting{}, errors.WithStack(err)
 	}
 
-	var configs Setting
-	if err := yaml.Unmarshal(content, &configs); err != nil {
+	var config Setting
+	if err := yaml.Unmarshal(content, &config); err != nil {
 		return Setting{}, errors.WithStack(err)
 	}
 
-	return configs, nil
+	return config, nil
 }
 
 const settingFileName = ".snap_git.yml"
@@ -173,7 +173,7 @@ func main() {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	ticker := time.Tick(time.Duration(setting.Interval) * time.Second)
-	log.Println("watching start")
+	log.Printf("watching start (interval: %d sec)\n", setting.Interval)
 
 	for {
 		select {
@@ -183,7 +183,7 @@ func main() {
 		case <-ticker:
 			for _, repo := range setting.Repos {
 				now := time.Now()
-				log.Printf("[%s] Snapshotting...", repoBaseName(repo.LocalPath))
+				log.Printf("[%s] Snapshooting...", repoBaseName(repo.LocalPath))
 
 				if err := do(repo.LocalPath, slackUrl, now); err != nil {
 					log.Printf("[%s] unexpected error happened: %v", repoBaseName(repo.LocalPath), err)
