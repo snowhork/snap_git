@@ -14,7 +14,6 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/google/go-github/v38/github"
-
 	"github.com/pkg/errors"
 )
 
