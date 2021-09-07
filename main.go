@@ -102,7 +102,7 @@ func readSetting(settingPath string) (Setting, error) {
 	return config, nil
 }
 
-const settingFileName = ".snap_git.yml"
+const settingFileName = ".snapshooting.yml"
 
 func main() {
 	slackUrl := os.Getenv("SLACK_WEBHOOK_URL")
@@ -165,19 +165,19 @@ func main() {
 	}
 
 	for _, repo := range setting.Repos {
-		log.Printf("watching: %s \n", repo.LocalPath)
+		log.Printf("target: %s \n", repo.LocalPath)
 	}
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	ticker := time.Tick(time.Duration(setting.Interval) * time.Second)
-	log.Printf("watching start (interval: %d sec)\n", setting.Interval)
+	log.Printf("snapshooting start (interval: %d sec)\n", setting.Interval)
 
 	for {
 		select {
 		case <-sigChan:
-			log.Println("snap_git: interrupt. terminating...")
+			log.Println("snapshooting: interrupt. terminating...")
 			os.Exit(0)
 		case <-ticker:
 			for _, repo := range setting.Repos {

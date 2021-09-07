@@ -1,4 +1,4 @@
-module github.com/snowhork/snap_git
+module github.com/snowhork/snapshooting
 
 go 1.17
 
