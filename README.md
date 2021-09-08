@@ -33,6 +33,8 @@ repos:
     github:
       owner: some-organization
       repo: another-repository
+GITHUB_ACCESS_TOKEN: xxxx
+SLACK_WEBHOOK_URL: yyyy
 ```
 
 ## auto launch
@@ -43,7 +45,7 @@ But, it is practical to add to `.bash_profile` or `.zsh_profile` like this:
 ```sh
 if [[ $(ps aux | grep snapshooting | grep -v grep | wc -l) -eq 0 ]]
    then
-       GITHUB_ACCESS_TOKEN=xx SLACK_WEBHOOK_URL=yy snapshooting 
+       snapshooting 
 fi
 ```
 
