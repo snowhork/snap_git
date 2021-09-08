@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -11,13 +12,11 @@ import (
 	"syscall"
 	"time"
 
-	"gopkg.in/yaml.v3"
-
-	"github.com/google/go-github/v38/github"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 )
 
-func do(repo string, slackUrl string, now time.Time) error {
+func snapshoot(repo string, slackUrl string, now time.Time) error {
 	if err := doGit(repo, now); err != nil {
 		if errors.Is(err, NoChangedError) {
 			log.Printf("[%s] No Changed.\n", repoBaseName(repo))
@@ -72,6 +71,9 @@ func repoBaseName(repoPath string) string {
 type Setting struct {
 	Repos    []RepoSetting `yaml:"repos"`
 	Interval int           `yaml:"interval"`
+
+	SlackWebhookURL   string `yaml:"SLACK_WEBHOOK_URL"`
+	GithubAccessToken string `yaml:"GITHUB_ACCESS_TOKEN"`
 }
 
 type RepoSetting struct {
@@ -104,24 +106,7 @@ func readSetting(settingPath string) (Setting, error) {
 
 const settingFileName = ".snapshooting.yml"
 
-func main() {
-	slackUrl := os.Getenv("SLACK_WEBHOOK_URL")
-	if slackUrl == "" {
-		log.Fatalf("SLACK_WEBHOOK_URL must be set")
-	}
-
-	var (
-		githubClient *github.Client
-	)
-	{
-		accessToken := os.Getenv("GITHUB_ACCESS_TOKEN")
-		if accessToken == "" {
-			log.Fatalf("GITHUB_ACCESS_TOKEN must be set")
-		}
-
-		githubClient = newGithubClient(accessToken)
-	}
-
+func setup() Setting {
 	var (
 		setting Setting
 	)
@@ -147,6 +132,8 @@ func main() {
 			log.Fatalf("%s is empty", reposFilePath)
 		}
 
+		githubClient := newGithubClient(setting.GithubAccessToken)
+
 		for _, repo := range setting.Repos {
 			if ok, err := gitExists(repo.LocalPath); !ok {
 				log.Fatalf("%s %+v", repo.LocalPath, err)
@@ -164,15 +151,25 @@ func main() {
 		}
 	}
 
-	for _, repo := range setting.Repos {
-		log.Printf("target: %s \n", repo.LocalPath)
-	}
+	return setting
+}
 
+func do(setting Setting) {
+	for _, repo := range setting.Repos {
+		now := time.Now()
+		log.Printf("[%s] Snapshooting...", repoBaseName(repo.LocalPath))
+
+		if err := snapshoot(repo.LocalPath, setting.SlackWebhookURL, now); err != nil {
+			log.Printf("[%s] unexpected error happened: %v", repoBaseName(repo.LocalPath), err)
+		}
+	}
+}
+
+func loop(setting Setting) {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	ticker := time.Tick(time.Duration(setting.Interval) * time.Second)
-	log.Printf("snapshooting start (interval: %d sec)\n", setting.Interval)
 
 	for {
 		select {
@@ -180,14 +177,27 @@ func main() {
 			log.Println("snapshooting: interrupt. terminating...")
 			os.Exit(0)
 		case <-ticker:
-			for _, repo := range setting.Repos {
-				now := time.Now()
-				log.Printf("[%s] Snapshooting...", repoBaseName(repo.LocalPath))
-
-				if err := do(repo.LocalPath, slackUrl, now); err != nil {
-					log.Printf("[%s] unexpected error happened: %v", repoBaseName(repo.LocalPath), err)
-				}
-			}
+			do(setting)
 		}
+	}
+}
+
+func main() {
+	setting := setup()
+
+	var oneShot bool
+	flag.BoolVar(&oneShot, "oneshot", false, "no loop")
+	flag.Parse()
+
+	for _, repo := range setting.Repos {
+		log.Printf("target: %s \n", repo.LocalPath)
+	}
+
+	if oneShot {
+		log.Println("snapshooting for oneshot")
+		do(setting)
+	} else {
+		log.Printf("snapshooting start (interval: %d sec)\n", setting.Interval)
+		loop(setting)
 	}
 }

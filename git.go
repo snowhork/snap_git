@@ -84,7 +84,7 @@ func doGit(repoPath string, now time.Time) error {
 		return err
 	}
 
-	if _, err := w.Commit(fmt.Sprintf("%d", now.Unix()), &git.CommitOptions{}); err != nil {
+	if _, err := w.Commit(fmt.Sprintf("sanpshot(%d)", now.Unix()), &git.CommitOptions{}); err != nil {
 		return err
 	}
 
